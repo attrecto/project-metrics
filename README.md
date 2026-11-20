@@ -12,9 +12,9 @@ Velocity. Everything runs on your machine.
 ## Install
 
 ```sh
-brew install kondfox/tap/pmx
+brew install attrecto/tap/pmx
 # or
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/kondfox/project-metrics/releases/latest/download/pmx-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/attrecto/project-metrics/releases/latest/download/pmx-installer.sh | sh
 ```
 
 Windows, `cargo binstall` and archives: [getting started](docs/getting-started.md#1-install-1-minute).

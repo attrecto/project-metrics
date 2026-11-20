@@ -14,7 +14,7 @@ targets = [
     "x86_64-pc-windows-msvc",
 ]
 installers = ["shell", "powershell", "homebrew"]
-tap = "kondfox/homebrew-tap"
+tap = "attrecto/homebrew-tap"
 formula = "pmx"
 publish-jobs = ["homebrew"]
 install-path = "CARGO_HOME"

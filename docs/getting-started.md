@@ -7,12 +7,12 @@ clones of your project's repositories. Everything stays on your machine.
 
 | Platform | Command |
 |---|---|
-| macOS, Linux (Homebrew) | `brew install kondfox/tap/pmx` |
-| macOS, Linux | `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/kondfox/project-metrics/releases/latest/download/pmx-installer.sh \| sh` |
-| Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -c "irm https://github.com/kondfox/project-metrics/releases/latest/download/pmx-installer.ps1 \| iex"` |
+| macOS, Linux (Homebrew) | `brew install attrecto/tap/pmx` |
+| macOS, Linux | `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/attrecto/project-metrics/releases/latest/download/pmx-installer.sh \| sh` |
+| Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -c "irm https://github.com/attrecto/project-metrics/releases/latest/download/pmx-installer.ps1 \| iex"` |
 | With Rust installed | `cargo binstall pmx` (downloads the same release binary) |
 
-Or download an archive from the [releases page](https://github.com/kondfox/project-metrics/releases).
+Or download an archive from the [releases page](https://github.com/attrecto/project-metrics/releases).
 Building from source is in [CONTRIBUTING.md](../CONTRIBUTING.md). Check the install with `pmx --version`.
 
 ## 2. See it on a fictional project (2 minutes, optional)

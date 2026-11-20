@@ -7,8 +7,8 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/kondfox/project-metrics"
-homepage = "https://github.com/kondfox/project-metrics"
+repository = "https://github.com/attrecto/project-metrics"
+homepage = "https://github.com/attrecto/project-metrics"
 
 [workspace.dependencies]
 pm-classify = { path = "crates/pm-classify" }

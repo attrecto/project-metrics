@@ -1,5 +1,5 @@
 /** Where the metrics are defined in detail: the spec in the repo's wiki (it wins over the topic pages). */
-const SPEC_URL = "https://github.com/kondfox/project-metrics/blob/main/wiki/metrics-spec.md";
+const SPEC_URL = "https://github.com/attrecto/project-metrics/blob/main/wiki/metrics-spec.md";
 
 /**
  * Spec section → its heading's anchor on GitHub. `docs.test.ts` checks each one against the headings of

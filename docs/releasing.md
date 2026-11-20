@@ -5,9 +5,12 @@ Releases are built by [cargo-dist](https://opensource.axo.dev/cargo-dist/) from 
 
 ## One-time setup
 
-1. Create the public repo `kondfox/homebrew-tap` (empty, default branch `main`).
-2. Create a fine-grained token with **Contents: read and write** on `kondfox/homebrew-tap` only, and store
-   it as the Actions secret `HOMEBREW_TAP_TOKEN` in this repo.
+Already done for `attrecto/project-metrics`; repeat it when the token expires or for a fork.
+
+1. The tap is the public repo `attrecto/homebrew-tap` (default branch `main`).
+2. In your personal settings, create a fine-grained token with resource owner `attrecto` and
+   **Contents: read and write** on `attrecto/homebrew-tap` only. Store it as the Actions secret
+   `HOMEBREW_TAP_TOKEN` in this repo.
 
 ## Cutting a release
 
