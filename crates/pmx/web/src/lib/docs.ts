@@ -20,7 +20,7 @@ export const SPEC_ANCHORS = {
   "§7.1": "71-dependency-vulnerabilities",
   "§7.2": "72-live-secrets-gate",
   "§7.3": "73-security-score",
-  "§7.4": "74-own-code-sast-project-dashboard-trend-only--never-ranked",
+  "§7.4": "74-own-code-sast-project-dashboard-trend-counted-in-the-security-score-73",
   "§8": "8-code-host-prmr-flow--peer-review-fleet-column--project-panels",
   "§10.2": "102-fte-provider-external-source-stub-in-v1",
 } as const;
