@@ -788,6 +788,71 @@ pub fn read_packages(
     Ok((group(commits, repos, prs), gits))
 }
 
+/// Work packages without a classifier, for `private/people.json` (plan D64): grouped like
+/// [`read_packages`] (spec §4), but from the ingest's commit facts, so no git log or diff is read
+/// again; only merges are, for PR membership. Unscored; `added` and `tests` come from the facts.
+pub fn packages_from_facts(
+    repos: &[VelocityRepo],
+    mut prs: PrIndex,
+    facts: &[pm_metrics::people::CommitFact],
+    since: NaiveDate,
+    as_of: NaiveDate,
+) -> Result<Vec<Package>> {
+    prs.add_merges(repos, since)?;
+    let index: BTreeMap<&str, usize> = repos.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
+    let by_sha: BTreeMap<(usize, &str), &pm_metrics::people::CommitFact> = facts
+        .iter()
+        .filter_map(|f| Some(((*index.get(f.repo.as_str())?, f.sha.as_str()), f)))
+        .collect();
+    let commits: Vec<RepoCommit> = facts
+        .iter()
+        .filter(|f| f.date >= since && f.date <= as_of)
+        .filter_map(|f| {
+            Some(RepoCommit {
+                repo: *index.get(f.repo.as_str())?,
+                person: f.person.clone(),
+                commit: Commit {
+                    sha: f.sha.clone(),
+                    author_email: f.email.clone(),
+                    author_name: f.person.clone(),
+                    author_date: f.date,
+                    message: f.subject.clone(),
+                    files: Vec::new(),
+                },
+            })
+        })
+        .collect();
+    let mut rows: Vec<Package> = group(commits, repos, &prs)
+        .iter()
+        .map(|wp| {
+            let facts: Vec<_> = wp
+                .commits
+                .iter()
+                .filter_map(|c| by_sha.get(&(c.repo, c.commit.sha.as_str())))
+                .collect();
+            let repo_names: BTreeSet<String> = wp.commits.iter().map(|c| repos[c.repo].name.clone()).collect();
+            let first = wp.commits.first().map_or("", |c| c.commit.message.as_str());
+            let prepared = Prepared {
+                state: String::new(),
+                facts: Facts::default(),
+                added: facts.iter().map(|f| f.added).sum(),
+                tests: facts.iter().any(|f| f.test),
+                truncated: false,
+                repos: repo_names.into_iter().collect(),
+                description: match &wp.ticket {
+                    Some(t) if !first.contains(t.as_str()) => format!("{t} {first}"),
+                    _ => first.to_string(),
+                },
+                files: Vec::new(),
+                unknown_files: 0,
+            };
+            row(wp, repos, &prepared)
+        })
+        .collect();
+    rows.sort_by(|a, b| b.date.cmp(&a.date).then(a.id.cmp(&b.id)));
+    Ok(rows)
+}
+
 /// Prepare one package for its classifier (`None`: no classifier for its repos).
 pub fn prepare_package(
     wp: &WorkPackage,
@@ -801,7 +866,7 @@ pub fn prepare_package(
     Ok((prepared, pick_classifier(wp, repos), local_only))
 }
 
-fn row(wp: &WorkPackage, prepared: &Prepared) -> Package {
+fn row(wp: &WorkPackage, repos: &[VelocityRepo], prepared: &Prepared) -> Package {
     let mut authors: BTreeMap<String, u32> = BTreeMap::new();
     for c in &wp.commits {
         *authors.entry(c.person.clone()).or_default() += 1;
@@ -825,6 +890,15 @@ fn row(wp: &WorkPackage, prepared: &Prepared) -> Package {
         unknown_files: prepared.unknown_files,
         author: wp.author.clone(),
         authors,
+        pr: wp.pr.clone(),
+        commit_refs: wp
+            .commits
+            .iter()
+            .map(|c| pm_metrics::people::CommitRef {
+                repo: repos[c.repo].name.clone(),
+                sha: c.commit.sha.clone(),
+            })
+            .collect(),
     }
 }
 
@@ -887,7 +961,7 @@ pub fn run_stage(s: &VelocitySettings, repos: &[VelocityRepo], mut prs: PrIndex)
     let mut cached = 0u64;
     for (index, wp) in packages.iter().enumerate() {
         let (prepared, name, local_only) = prepare_package(wp, repos, &gits, s.classifier, &set)?;
-        rows.push(row(wp, &prepared));
+        rows.push(row(wp, repos, &prepared));
         let Some(name) = name else {
             p.advance(VELOCITY, 1);
             continue;

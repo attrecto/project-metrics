@@ -53,6 +53,14 @@ pub struct Package {
     #[serde(skip)]
     #[cfg_attr(feature = "ts", ts(skip))]
     pub authors: std::collections::BTreeMap<String, u32>,
+    /// The PR package id (`<repo>#<n>`, …) of a PR package. Lead-only (`people.json`).
+    #[serde(skip)]
+    #[cfg_attr(feature = "ts", ts(skip))]
+    pub pr: Option<String>,
+    /// The package's commits, oldest first. Lead-only (`people.json`).
+    #[serde(skip)]
+    #[cfg_attr(feature = "ts", ts(skip))]
+    pub commit_refs: Vec<crate::people::CommitRef>,
 }
 
 impl Package {
@@ -265,6 +273,8 @@ mod tests {
             unknown_files: 0,
             author: None,
             authors: Default::default(),
+            pr: None,
+            commit_refs: Vec::new(),
         };
         let days = velocity_days(&[
             p("2026-08-03", Some([2, 0, 1, 2, 1, 2]), Some(3), false),

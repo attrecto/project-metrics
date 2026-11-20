@@ -172,6 +172,22 @@ fn fetches_incrementally_and_falls_back_to_stored_prs() {
     );
     assert!(p.meta.not_measured.contains(&"pr_size".to_string()));
     assert!(!p.meta.not_measured.contains(&"peer_review".to_string()));
+    // people.json: the same two MRs, newest first, resolved to people; no mentoring yet.
+    let prs = c.people.prs.as_ref().expect("measured");
+    let rows: Vec<(u64, Option<&str>, Vec<&str>)> = prs
+        .iter()
+        .map(|r| {
+            (
+                r.number,
+                r.author.as_deref(),
+                r.reviewers.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(rows, [(2, Some("bob"), vec![]), (1, Some("Ann Example"), vec!["bob"])]);
+    assert_eq!(prs[1].first_review_ms, Some(2 * 3_600_000));
+    assert!(prs.iter().all(|r| r.mentors.is_empty() && r.repo == "api"));
+    assert_eq!(c.people.repos[0].host.as_deref(), Some("gitlab"));
     let first = gl.seen();
     assert!(first[0].contains("updated_after=2025-01-01T00:00:00Z"), "{first:?}");
     assert_eq!(first.iter().filter(|u| u.contains("/notes")).count(), 3);

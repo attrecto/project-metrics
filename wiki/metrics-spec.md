@@ -523,6 +523,7 @@ setup commands: [tool-implementation-plan.md §3](tool-implementation-plan.md#3-
 | `[[repo]]` `branch`, `rev` | Integration branch to measure; optional `rev` pins a SHA (§1.1 reproducible runs) |
 | `[[repo]]` `role` | `frontend · backend · mobile · qa · infra · data · docs`, or `per-file` (§1.5) |
 | `[[repo]]` `code_host_id`, `classifier`, `data_policy` | GitLab project id / GitHub `owner/repo`; per-repo classifier override and `local-only` guard (§10.3) |
+| `[[repo]]` `web_url` | Optional: the repo's web page for links in `people.json` (§10.9); default made from `url` or the `origin` remote (needed for SSH host aliases and mirrors) |
 | `role_rules` | Optional override of the per-file path hints (§1.5) |
 | `[people]` | **⟂ spec change 2026-10-09:** one table replaces `identity` + `usernames`. `"Canonical Name" = [emails…, code-host logins…]`, plus `bots = […]` and `externals = […]` (§1.3) |
 | `security_lockfiles` | Optional override; default = auto-discover every lockfile OSV-Scanner supports |
@@ -664,7 +665,8 @@ leaders}`; `ai_compare`; `security{date, top_packages, lockfiles}`; `hotspots[{r
 rubric version, classifier per package, constituents present, not_measured, pull_requests{host,
 repos, sizes}}`. A day's PR components (`pr{merged, cycle_ms[], reviewed, wait_ms[], sizes[],
 mentored}`, §8) hold no people, so custom ranges recompute the PR metrics too. Per-person drill-downs (leaders, per-person
-points) go to a separate `private/leads.json`, never into the shared file. The per-person day components
+points) go to a separate `private/leads.json`, never into the shared file; per-person facts for the
+separate people report go to `private/people.json` (§10.9). The per-person day components
 in `days` (commits and lines per person, needed for multi-stack, active devs and commits per dev over any
 range) use **pseudonymous ids** (`p1`, `p2`, … by sorted name); the id → name map is only in
 `private/leads.json` (decided 2026-10-09, plan D9). The dashboard recomputes custom ranges from `days` with the same Rust code compiled to WASM (plan D15). The fleet view is an
@@ -731,3 +733,31 @@ before the fleet's `as_of`; its later days are missing, not zero), `weeks`, `mon
 of the fleet row (ids of §10.7), and `coverage_weekly` / `coverage_monthly`. Bands and low-n use the same
 fixed rules as projects (§1.7, §1.1); nothing is fleet-relative.
 
+### 10.9 People facts (`private/people.json`, decided 2026-10-27, plan D64)
+Written by every `pmx collect` next to `leads.json`, for the separate `people-metrics` report. It is the
+contract between the two tools (schema `pmx.people/1`; a breaking change bumps it). **Lead only:** real
+names and emails, never copied into `project.json`, `fleet.json` or a shareable page. It holds facts, not
+metrics: the report computes per-person numbers from them.
+
+- `project`, `range_start`, `as_of`, `generated_at`, `breadth_roles`, `ai_attribution`.
+- `repos[{name, role, sha, host, web_url}]`: `sha` is the measured tip (commit lists link to it, so they
+  show what was measured); `host` is `github` · `gitlab` · null; `web_url` from `[[repo]] web_url`, else
+  made from `url` / the `origin` remote (`git@host:g/r.git` → `https://host/g/r`), else null (no links).
+- `commits[]`, newest first: every commit by an included author (§1.3) dated `range_start`…`as_of`:
+  `{repo, sha, date, person, email, subject, ai, added, size, prod, test, doc, lines{role → tech → n}}`
+  with the definitions of §1.4–1.6 and §6 (`added`/`size` over source files, `person` canonical).
+- `packages[]`, newest first: the work packages of §4 `{id, kind, date, description, repos, authors{person
+  → commits}, commits[{repo, sha}], added, points, size, axes, tests, debt, pr{repo, path?, number}}`,
+  `kind` = `ticket` · `pr` · `author-week`; author-week ids carry the real name. With Velocity they are its
+  packages (from `[velocity] since`); without a classifier the same grouping is made from the commit
+  facts and merge commits, unscored (`points` null, `added`/`tests` from the facts).
+- `velocity`: `{rubric, classifiers, since}`, or null when not measured.
+- `prs[]`, newest first, or null when peer review is not measured: each merged PR/MR by an included author
+  dated `range_start`…`as_of`: `{repo, number, author, created_at, merged_at, merged, cycle_ms,
+  first_review_ms, reviewers[], mentors[], stack, size}` (§8; `mentors` = expert reviewers of a
+  non-expert author, the pairs behind `mentoring_pairs`).
+
+Links the report makes from these (host-specific, so they live in the report): a `pr` package → the PR/MR
+page; a `ticket` package → the repo's commits searched for the ticket id; an `author-week` package → the
+repo's commits at `sha` filtered by the author's email (GitHub also by the week's dates; GitLab's commit
+list cannot filter by date), plus each commit's own page.

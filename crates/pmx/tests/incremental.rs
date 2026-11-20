@@ -6,9 +6,8 @@ use std::path::Path;
 
 use common::{BOB, JANE, Repo, d, lines};
 use pm_config::{Config, Workspace};
-use pm_metrics::ProjectFile;
 use pmx::collect::{Work, plan};
-use pmx::{CollectOptions, collect};
+use pmx::{CollectOptions, Collected, collect};
 
 fn workspace(root: &Path, repo: &Path) -> Workspace {
     let text = format!(
@@ -39,7 +38,9 @@ fn opts(cache: bool) -> CollectOptions {
     o
 }
 
-fn same(a: &ProjectFile, b: &ProjectFile) {
+fn same(a: &Collected, b: &Collected) {
+    assert_eq!(a.people.commits, b.people.commits, "commit facts differ");
+    let (a, b) = (&a.project, &b.project);
     assert_eq!(a.days, b.days, "days differ");
     assert_eq!(a.series_monthly, b.series_monthly);
     assert_eq!(a.series_weekly, b.series_weekly);
@@ -48,9 +49,9 @@ fn same(a: &ProjectFile, b: &ProjectFile) {
 }
 
 /// A run without any cache, in a fresh workspace.
-fn fresh(repo: &Path) -> ProjectFile {
+fn fresh(repo: &Path) -> Collected {
     let tmp = tempfile::tempdir().unwrap();
-    collect(&workspace(tmp.path(), repo), &opts(false)).unwrap().project
+    collect(&workspace(tmp.path(), repo), &opts(false)).unwrap()
 }
 
 fn works(ws: &Workspace) -> (Work, Work) {
@@ -73,7 +74,7 @@ fn incremental_resumed_and_rewritten_runs_equal_full_runs() {
     let ws_dir = tmp.path().join("ws");
     let ws = workspace(&ws_dir, &repo.0);
     assert!(matches!(works(&ws), (Work::Full { .. }, Work::Full { .. })));
-    let first = collect(&ws, &opts(true)).unwrap().project;
+    let first = collect(&ws, &opts(true)).unwrap();
     same(&first, &fresh(&repo.0));
     assert_eq!(works(&ws), (Work::Cached, Work::Cached));
 
@@ -89,10 +90,10 @@ fn incremental_resumed_and_rewritten_runs_equal_full_runs() {
         (Work::Incremental { units: 3, .. }, Work::Incremental { .. }) => {}
         other => panic!("expected incremental work, got {other:?}"),
     }
-    let second = collect(&ws, &opts(true)).unwrap().project;
+    let second = collect(&ws, &opts(true)).unwrap();
     let full = fresh(&repo.0);
     same(&second, &full);
-    let rework = |p: &ProjectFile| p.days[&d("2025-02-01")].reworked;
+    let rework = |c: &Collected| c.project.days[&d("2025-02-01")].reworked;
     assert_eq!(rework(&second), 6, "the back-dated deletions are rework");
 
     // Interrupted after the ingest stage: the rework result is missing; the next run redoes only
@@ -101,14 +102,14 @@ fn incremental_resumed_and_rewritten_runs_equal_full_runs() {
     db.execute("DELETE FROM stage_result WHERE stage = 'rework'", [])
         .unwrap();
     assert!(matches!(works(&ws), (Work::Cached, Work::Full { .. })));
-    same(&collect(&ws, &opts(true)).unwrap().project, &full);
+    same(&collect(&ws, &opts(true)).unwrap(), &full);
 
     // History rewritten (force-push): the cached SHA is no longer an ancestor, so it starts over.
     repo.reset_hard(&phase1);
     repo.write("src/d.ts", &lines("d", 0..8));
     repo.commit("2025-02-20", BOB, "rewritten");
     assert!(matches!(works(&ws), (Work::Full { .. }, Work::Full { .. })));
-    same(&collect(&ws, &opts(true)).unwrap().project, &fresh(&repo.0));
+    same(&collect(&ws, &opts(true)).unwrap(), &fresh(&repo.0));
 
     // `--full` ignores the cache even when nothing changed.
     let mut o = opts(true);

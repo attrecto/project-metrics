@@ -189,6 +189,17 @@ classifier = "fake"
     // The local-only repo's classifier is remote: never sent, not scored.
     assert_eq!(pkg("VLT-1").points, None);
     assert!(c.warnings.iter().any(|w| w.contains("local-only")), "{:?}", c.warnings);
+    // The lead's people.json has the same packages under real names, with points and commits.
+    let people = &c.people;
+    assert_eq!(people.velocity.as_ref().map(|v| v.rubric.as_str()), Some("six-axis@3"));
+    let ids: Vec<&str> = people.packages.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(ids, ["SHOP-2", "Bob Builder~2025-W07", "SHOP-1", "VLT-1"]);
+    let week = &people.packages[1];
+    assert_eq!((week.kind.as_str(), week.points), ("author-week", Some(2)));
+    assert_eq!(week.authors.get("Bob Builder"), Some(&2));
+    assert_eq!(week.commits.len(), 2);
+    assert!(week.commits.iter().all(|r| r.repo == "api"));
+    assert_eq!(people.packages[0].debt, 5);
 
     // Feb: 9 points over 20 business days × 2 FTE.
     assert_eq!(monthly(p, "velocity_points", "2025-02"), Some(9.0));

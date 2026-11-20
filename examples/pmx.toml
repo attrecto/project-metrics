@@ -12,6 +12,7 @@ path = "~/src/acme/shop-api"          # local clone…
 branch = "origin/development2"
 role = "backend"
 code_host_id = 785                    # GitLab project id (or "group/project"); GitHub: "owner/repo"
+# web_url = "https://gitlab.example.com/acme/shop-api"  # link base for people.json; default from origin
 
 [[repo]]
 url = "git@gitlab.example.com:acme/shop-web.git"   # …or a URL pmx clones itself

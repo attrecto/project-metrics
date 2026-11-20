@@ -602,6 +602,8 @@ pub fn generate_variant(dir: &Path, as_of: NaiveDate, v: &Variant) -> Result<Wor
                 code_host_id: v
                     .pull_requests
                     .then(|| pm_config::CodeHostId::Name(format!("{ORG}/{}", s.name))),
+                // A reserved domain: links in people.json lead nowhere real.
+                web_url: Some(format!("https://github.example.com/{ORG}/{}", s.name)),
                 ..Default::default()
             })
             .collect(),

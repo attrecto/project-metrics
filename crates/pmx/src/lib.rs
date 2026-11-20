@@ -10,6 +10,7 @@ pub mod export;
 pub mod fleet;
 pub mod ingest;
 pub mod people;
+pub mod people_file;
 pub mod pulls;
 pub mod setup;
 pub mod snapshots;

@@ -104,25 +104,40 @@ impl Expertise {
     }
 }
 
-/// Day components of the PRs. Expert status for a PR counts the PRs merged in the
-/// [`EXPERT_WINDOW_DAYS`] days before its merge date, so a PR's mentoring flag never changes when
-/// later PRs arrive.
-pub fn pr_days(prs: &[PrInput]) -> Days {
-    let mut order: Vec<&PrInput> = prs.iter().collect();
-    order.sort_by_key(|p| p.merged);
-    let mut days = Days::new();
+/// Per PR (in input order), its mentors: the expert reviewers of a reviewed PR whose author is not
+/// an expert in its stack (spec §8). Expert status for a PR counts the PRs merged in the
+/// [`EXPERT_WINDOW_DAYS`] days before its merge date, so a PR's mentors never change when later
+/// PRs arrive.
+pub fn mentors(prs: &[PrInput]) -> Vec<Vec<String>> {
+    let mut order: Vec<usize> = (0..prs.len()).collect();
+    order.sort_by_key(|&i| prs[i].merged);
+    let mut out = vec![Vec::new(); prs.len()];
     let mut window = Expertise::default();
     let (mut lo, mut hi) = (0, 0);
-    for p in &order {
-        while hi < order.len() && order[hi].merged < p.merged {
-            window.add(order[hi], 1);
+    for &i in &order {
+        let p = &prs[i];
+        while hi < order.len() && prs[order[hi]].merged < p.merged {
+            window.add(&prs[order[hi]], 1);
             hi += 1;
         }
         let from = p.merged - ChronoDays::new(EXPERT_WINDOW_DAYS);
-        while lo < hi && order[lo].merged < from {
-            window.add(order[lo], -1);
+        while lo < hi && prs[order[lo]].merged < from {
+            window.add(&prs[order[lo]], -1);
             lo += 1;
         }
+        if let (Some(a), Some(s), Some(_)) = (&p.author, p.stack, p.first_review_ms) {
+            if !window.is_expert(a, s) {
+                out[i] = p.reviewers.iter().filter(|r| window.is_expert(r, s)).cloned().collect();
+            }
+        }
+    }
+    out
+}
+
+/// Day components of the PRs.
+pub fn pr_days(prs: &[PrInput]) -> Days {
+    let mut days = Days::new();
+    for (p, mentors) in prs.iter().zip(mentors(prs)) {
         let d = &mut days.entry(p.merged).or_default().pr;
         d.merged += 1;
         d.cycle_ms.push(p.cycle_ms);
@@ -132,11 +147,7 @@ pub fn pr_days(prs: &[PrInput]) -> Days {
         if let Some(w) = p.first_review_ms {
             d.reviewed += 1;
             d.wait_ms.push(w);
-            if let (Some(a), Some(s)) = (&p.author, p.stack) {
-                if !window.is_expert(a, s) && p.reviewers.iter().any(|r| window.is_expert(r, s)) {
-                    d.mentored += 1;
-                }
-            }
+            d.mentored += !mentors.is_empty() as u32;
         }
     }
     days
@@ -211,6 +222,16 @@ mod tests {
         // The next day cy's fifth PR counts: 5 ≥ 25% of 20, an expert now.
         prs.push(pr("2025-02-02", "dee", &["cy"]));
         assert_eq!(pr_days(&prs)[&d("2025-02-02")].pr.mentored, 1);
+    }
+
+    #[test]
+    fn mentors_are_the_expert_reviewers() {
+        let mut prs: Vec<PrInput> = (10..=12).map(|i| pr(&format!("2025-01-{i}"), "bob", &[])).collect();
+        prs.push(pr("2025-03-01", "ann", &["cy", "bob"]));
+        prs.push(pr("2025-03-02", "ann", &["cy"]));
+        let m = mentors(&prs);
+        assert_eq!(m[3], vec!["bob".to_string()]);
+        assert!(m[4].is_empty() && m[0].is_empty());
     }
 
     #[test]

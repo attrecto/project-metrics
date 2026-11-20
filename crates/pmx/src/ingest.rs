@@ -1,12 +1,13 @@
 //! One repo's commits → per-day components (spec §2, §3.2–3.3, §5, §6), and the rework counts
 //! merged in (§3.1).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::NaiveDate;
-use pm_classify::{Classifier, FileClass};
+use pm_classify::{Classifier, FileClass, Role};
 use pm_config::{Identity, RepoRole};
 use pm_git::{Commit, ReworkCounts};
+use pm_metrics::people::CommitFact;
 use pm_metrics::{Days, merge_days};
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,9 @@ pub struct RepoIngest {
     /// Commits read from git (all authors, any date), for progress and planning.
     #[serde(default)]
     pub commits_read: u64,
+    /// The included commits from `range_start` on, newest first, for `private/people.json`.
+    #[serde(default)]
+    pub commits: Vec<CommitFact>,
 }
 
 impl RepoIngest {
@@ -28,6 +32,8 @@ impl RepoIngest {
         merge_days(&mut self.days, &more.days);
         self.commit_dates.extend(more.commit_dates);
         self.commits_read += more.commits_read;
+        let older = std::mem::replace(&mut self.commits, more.commits);
+        self.commits.extend(older);
     }
 }
 
@@ -54,6 +60,7 @@ pub fn is_ai_assisted(message: &str) -> bool {
 }
 
 pub struct IngestContext<'a> {
+    pub repo: &'a str,
     pub role: RepoRole,
     pub classifier: &'a Classifier,
     pub identity: &'a Identity,
@@ -73,6 +80,7 @@ pub fn ingest(commits: &[Commit], cx: &IngestContext) -> RepoIngest {
             continue;
         }
         let day = out.days.entry(c.author_date).or_default();
+        let mut lines: BTreeMap<Role, BTreeMap<String, u64>> = BTreeMap::new();
         let (mut added, mut size) = (0u64, 0u64);
         let (mut prod, mut test, mut doc) = (false, false, false);
         for f in &c.files {
@@ -92,13 +100,26 @@ pub fn ingest(commits: &[Commit], cx: &IngestContext) -> RepoIngest {
                 };
                 let tech = cls.technology(&f.path).expect("source files have a technology");
                 day.add_lines(&author.person, role, tech, f.added);
+                *lines.entry(role).or_default().entry(tech.to_string()).or_default() += f.added;
             }
         }
-        let g = if is_ai_assisted(&c.message) {
-            &mut day.ai
-        } else {
-            &mut day.human
-        };
+        let ai = is_ai_assisted(&c.message);
+        out.commits.push(CommitFact {
+            repo: cx.repo.to_string(),
+            sha: c.sha.clone(),
+            date: c.author_date,
+            person: author.person.clone(),
+            email: c.author_email.clone(),
+            subject: c.message.lines().next().unwrap_or("").to_string(),
+            ai,
+            added,
+            size,
+            prod,
+            test,
+            doc,
+            lines,
+        });
+        let g = if ai { &mut day.ai } else { &mut day.human };
         g.commits += 1;
         g.added += added;
         if size > 0 {

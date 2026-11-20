@@ -129,6 +129,10 @@ pub struct RepoConfig {
     /// Override of lockfile auto-discovery (spec §7.1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub security_lockfiles: Option<Vec<String>>,
+    /// The repo's web page, for links in `private/people.json` (spec §10.9); defaults to one made
+    /// from `url` or the `origin` remote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_url: Option<String>,
 }
 
 impl RepoConfig {

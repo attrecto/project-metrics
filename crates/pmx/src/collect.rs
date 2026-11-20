@@ -107,6 +107,7 @@ impl CollectOptions {
 pub struct Collected {
     pub project: ProjectFile,
     pub leads: LeadsFile,
+    pub people: pm_metrics::PeopleFile,
     pub warnings: Vec<String>,
 }
 
@@ -196,6 +197,8 @@ fn settings(ws: &Workspace, repo: &RepoConfig, opts: &CollectOptions) -> Setting
             "role": repo.role.to_string(),
             "role_rules": c.role_rules,
             "people": c.people,
+            // 2: commit facts for private/people.json.
+            "format": 2,
         })),
         rework: digest(common),
     }
@@ -458,6 +461,7 @@ fn run_repo(
     let keys = settings(ws, repo, opts);
     let range_start = ws.config.project.range_start;
     let cx = IngestContext {
+        repo: name,
         role: repo.role,
         classifier: &sh.classifier,
         identity: &sh.identity,
@@ -644,8 +648,10 @@ pub fn collect(ws: &Workspace, opts: &CollectOptions) -> Result<Collected> {
     let mut days = Days::new();
     let mut dates = BTreeSet::new();
     let mut repos = Vec::new();
+    let mut commit_facts = Vec::new();
     for r in results {
         let r = r?;
+        commit_facts.extend(r.ingest.commits);
         let mut repo_days = r.ingest.days;
         add_rework(&mut repo_days, &r.rework.counts, range_start);
         let window: Days = repo_days
@@ -785,6 +791,27 @@ pub fn collect(ws: &Workspace, opts: &CollectOptions) -> Result<Collected> {
             }
         }
     }
+    let generated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let unscored = match &velocity {
+        Some(_) => Vec::new(),
+        None => {
+            let prs = crate::velocity::PrIndex::new(ws, &pulls.repos, pulls.missing.clone());
+            crate::velocity::packages_from_facts(&velocity_repos, prs, &commit_facts, range_start, opts.as_of)?
+        }
+    };
+    let people = crate::people_file::build(crate::people_file::PeopleInput {
+        config,
+        repos: &repos,
+        plans: &plans,
+        commits: commit_facts,
+        as_of: opts.as_of,
+        generated_at: generated_at.clone(),
+        velocity: velocity.as_ref(),
+        unscored,
+        prs: pulls.info.is_some().then_some(pulls.repos.as_slice()),
+        identity: &shared.identity,
+        classifier: &shared.classifier,
+    });
     let (project, leads) = pm_metrics::build(BuildInput {
         project: ProjectInfo {
             name: config.project.name.clone(),
@@ -796,7 +823,7 @@ pub fn collect(ws: &Workspace, opts: &CollectOptions) -> Result<Collected> {
         days,
         as_of: opts.as_of,
         latest_commit: dates.last().copied(),
-        generated_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        generated_at,
         tool_versions,
         dialect: if opts.prototype_compat {
             "prototype".into()
@@ -811,6 +838,7 @@ pub fn collect(ws: &Workspace, opts: &CollectOptions) -> Result<Collected> {
     Ok(Collected {
         project,
         leads,
+        people,
         warnings: p.warnings(),
     })
 }
@@ -865,7 +893,7 @@ fn timeline(config: &Config, repos: &[RepoInfo], plans: &[RepoPlan], as_of: Naiv
     }
 }
 
-/// Write `out/project.json` and `out/private/leads.json`.
+/// Write `out/project.json`, `out/private/leads.json` and `out/private/people.json`.
 pub fn write_outputs(out_dir: &Path, c: &Collected) -> Result<()> {
     let private = out_dir.join("private");
     std::fs::create_dir_all(&private)?;
@@ -874,5 +902,6 @@ pub fn write_outputs(out_dir: &Path, c: &Collected) -> Result<()> {
     };
     write(&out_dir.join("project.json"), serde_json::to_string(&c.project)?)?;
     write(&private.join("leads.json"), serde_json::to_string_pretty(&c.leads)?)?;
+    write(&private.join("people.json"), serde_json::to_string(&c.people)?)?;
     Ok(())
 }

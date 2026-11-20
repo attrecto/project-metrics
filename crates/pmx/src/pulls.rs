@@ -409,41 +409,53 @@ fn ms(d: chrono::TimeDelta) -> u64 {
 /// Resolve PRs to people and stacks. `exclude_authors`: drop PRs by bots and externals (spec §1.3;
 /// the prototype kept them).
 pub fn inputs(repos: &[RepoPrs], identity: &Identity, classifier: &Classifier, exclude_authors: bool) -> Vec<PrInput> {
-    let mut out = Vec::new();
-    for r in repos {
-        for pr in &r.prs {
-            let author = pr
-                .author
-                .as_ref()
-                .map(|a| identity.resolve_login(&a.login, a.name.as_deref(), a.bot));
-            if exclude_authors && author.as_ref().is_some_and(|a| a.excluded.is_some()) {
-                continue;
-            }
-            let person = author.map(|a| a.person);
-            let mut reviewers: Vec<String> = Vec::new();
-            let mut first: Option<DateTime<FixedOffset>> = None;
-            for rv in &pr.reviews {
-                let by = identity.resolve_login(&rv.by.login, rv.by.name.as_deref(), rv.by.bot);
-                if by.excluded == Some(Exclusion::Bot) || Some(&by.person) == person.as_ref() {
-                    continue;
-                }
-                first = Some(first.map_or(rv.at, |f| f.min(rv.at)));
-                if !reviewers.contains(&by.person) {
-                    reviewers.push(by.person);
-                }
-            }
-            out.push(PrInput {
-                merged: pr.merged_at.date_naive(),
-                cycle_ms: ms(pr.merged_at - pr.created_at),
-                first_review_ms: first.map(|f| ms(f - pr.created_at)),
-                author: person,
-                reviewers,
-                stack: stack(r.role, pr, classifier),
-                size: pr.additions.zip(pr.deletions).map(|(a, d)| a + d),
-            });
+    repos
+        .iter()
+        .flat_map(|r| {
+            r.prs
+                .iter()
+                .filter_map(move |pr| input(r, pr, identity, classifier, exclude_authors))
+        })
+        .collect()
+}
+
+/// One PR resolved to people; `None` when its author is excluded and `exclude_authors` is set.
+pub fn input(
+    r: &RepoPrs,
+    pr: &MergedPr,
+    identity: &Identity,
+    classifier: &Classifier,
+    exclude_authors: bool,
+) -> Option<PrInput> {
+    let author = pr
+        .author
+        .as_ref()
+        .map(|a| identity.resolve_login(&a.login, a.name.as_deref(), a.bot));
+    if exclude_authors && author.as_ref().is_some_and(|a| a.excluded.is_some()) {
+        return None;
+    }
+    let person = author.map(|a| a.person);
+    let mut reviewers: Vec<String> = Vec::new();
+    let mut first: Option<DateTime<FixedOffset>> = None;
+    for rv in &pr.reviews {
+        let by = identity.resolve_login(&rv.by.login, rv.by.name.as_deref(), rv.by.bot);
+        if by.excluded == Some(Exclusion::Bot) || Some(&by.person) == person.as_ref() {
+            continue;
+        }
+        first = Some(first.map_or(rv.at, |f| f.min(rv.at)));
+        if !reviewers.contains(&by.person) {
+            reviewers.push(by.person);
         }
     }
-    out
+    Some(PrInput {
+        merged: pr.merged_at.date_naive(),
+        cycle_ms: ms(pr.merged_at - pr.created_at),
+        first_review_ms: first.map(|f| ms(f - pr.created_at)),
+        author: person,
+        reviewers,
+        stack: stack(r.role, pr, classifier),
+        size: pr.additions.zip(pr.deletions).map(|(a, d)| a + d),
+    })
 }
 
 #[cfg(test)]
