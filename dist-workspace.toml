@@ -21,3 +21,7 @@ install-path = "CARGO_HOME"
 install-updater = false
 # The dashboard (Node) and the WASM engine are built into the binary; see build-setup.yml.
 github-build-setup = "../build-setup.yml"
+
+# dist 0.32 defaults macOS arm64 to the macos-14 image, which GitHub no longer runs.
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-15"
