@@ -60,6 +60,31 @@ pub struct Config {
     /// Dated events: AI tooling arriving, a team change (spec §4.1).
     #[serde(default, rename = "marker", skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<MarkerConfig>,
+    /// Gaps the lead accepts: metrics this project knowingly goes without (`pmx check --gaps`).
+    #[serde(default, rename = "accept", skip_serializing_if = "Vec::is_empty")]
+    pub accepted_gaps: Vec<AcceptedGap>,
+}
+
+/// What `pmx check --gaps` can report as not measured, and `[[accept]] gap` can name.
+pub const GAP_IDS: &[&str] = &[
+    "velocity",
+    "fte",
+    "peer_review",
+    "duplication",
+    "complexity",
+    "hotspots",
+    "dependency_vulnerabilities",
+    "secrets",
+    "sast",
+];
+
+/// `[[accept]]`: a metric the project goes without, with the reason, so it is a decision and not
+/// an oversight.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedGap {
+    pub gap: String,
+    pub reason: String,
 }
 
 /// `[[phase]]`: from `from` until the next phase starts (spec §4.1).
@@ -554,6 +579,22 @@ impl Config {
         if self.project.breadth_roles.is_empty() {
             return bad("[project] breadth_roles is empty".into());
         }
+        let mut accepted = BTreeSet::new();
+        for a in &self.accepted_gaps {
+            if !GAP_IDS.contains(&a.gap.as_str()) {
+                return bad(format!(
+                    "[[accept]] gap `{}` is not one of: {}",
+                    a.gap,
+                    GAP_IDS.join(", ")
+                ));
+            }
+            if a.reason.trim().is_empty() {
+                return bad(format!("[[accept]] gap `{}` needs a `reason`", a.gap));
+            }
+            if !accepted.insert(a.gap.as_str()) {
+                return bad(format!("[[accept]] gap `{}` is listed twice", a.gap));
+            }
+        }
         if let Some(f) = &self.fte {
             match f.source {
                 FteSource::Static if f.value.is_none() && f.periods.is_empty() => {
@@ -718,6 +759,22 @@ mod tests {
         assert_eq!(cfg.phases.len(), 2);
         assert_eq!(cfg.phases[1].name, "active development");
         assert_eq!(cfg.markers[0].kind, Some(MarkerKind::Ai));
+    }
+
+    #[test]
+    fn accepted_gaps_need_a_known_id_and_a_reason() {
+        let with = |extra: &str| Config::parse(&format!("{EXAMPLE}\n{extra}"), Path::new("x"));
+        let cfg = with("[[accept]]\ngap = \"peer_review\"\nreason = \"The host has no API\"\n").unwrap();
+        assert_eq!(cfg.accepted_gaps[0].gap, "peer_review");
+        assert_eq!(
+            Config::parse(&cfg.to_toml(), Path::new("x")).unwrap().accepted_gaps,
+            cfg.accepted_gaps
+        );
+        let err = |extra: &str| with(extra).unwrap_err().to_string();
+        assert!(err("[[accept]]\ngap = \"speed\"\nreason = \"x\"\n").contains("is not one of"));
+        assert!(err("[[accept]]\ngap = \"sast\"\nreason = \" \"\n").contains("needs a `reason`"));
+        let twice = "[[accept]]\ngap = \"sast\"\nreason = \"a\"\n[[accept]]\ngap = \"sast\"\nreason = \"b\"\n";
+        assert!(err(twice).contains("listed twice"));
     }
 
     #[test]

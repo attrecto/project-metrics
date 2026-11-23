@@ -628,6 +628,7 @@ pub fn generate_variant(dir: &Path, as_of: NaiveDate, v: &Variant) -> Result<Wor
         velocity: None,
         phases: Vec::new(),
         markers: Vec::new(),
+        accepted_gaps: Vec::new(),
     };
     config.validate()?;
     std::fs::write(

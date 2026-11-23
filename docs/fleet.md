@@ -25,4 +25,8 @@ collected on different dates are marked "as of <date>". Velocity is pooled only 
 by the same classifier and rubric. How each fleet value is pooled:
 [plan D34](../wiki/tool-implementation-plan.md).
 
+Before a project's output is shared with the fleet, run `pmx -C <project> check --gaps`: it fails when
+the collect did not measure something and the lead has not accepted that gap in `pmx.toml`
+([plan D68](../wiki/tool-implementation-plan.md)). A script that publishes the fleet should stop on it.
+
 Try it on fictional data: `pmx demo /tmp/acme-fleet --fleet && pmx -C /tmp/acme-fleet fleet serve --open`.

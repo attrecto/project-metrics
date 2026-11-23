@@ -16,6 +16,8 @@ and says how to install it. Without a tool, its metrics show as "not measured", 
 | Duplication or SAST is "not measured" | jscpd needs Node (it runs through `npx`); SAST needs semgrep (`pipx install semgrep==1.179.0`) |
 | Velocity is "not measured" | No classifier, or some packages in that period failed to score: see [velocity.md](velocity.md) |
 | Velocity: "structured output is unavailable" | Ollama from the Homebrew formula: install the Ollama app instead ([velocity.md](velocity.md)) |
+| `pmx check --gaps` fails | The last collect did not measure something. Each line says what and how to fix it; collect again afterwards. If the project really goes without that metric, accept it in `pmx.toml`: `[[accept]]` with `gap = "<id>"` and `reason = "<why>"` |
+| Security score is empty although osv-scanner is installed | A lockfile failed to scan in one repo (collect prints a warning naming it), which leaves the whole project without dependency data. Name the lockfiles that count: `security_lockfiles = ["package-lock.json"]` on that `[[repo]]` |
 | `collect` was interrupted | Run it again: finished work is cached and it continues |
 | Numbers look off after editing `pmx.toml` | Changing `[people]`, roles or `range_start` redoes only the affected stages on the next collect. `pmx collect --full` recomputes everything |
 | Port 7878 is in use | `pmx serve --port 7979 --open` |

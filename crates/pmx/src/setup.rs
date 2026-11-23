@@ -330,6 +330,7 @@ pub fn new_config(name: String, range_start: NaiveDate, suggestions: &[Suggestio
         velocity: None,
         phases: Vec::new(),
         markers: Vec::new(),
+        accepted_gaps: Vec::new(),
     };
     config.validate()?;
     Ok(config)

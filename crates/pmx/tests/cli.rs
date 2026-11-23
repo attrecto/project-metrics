@@ -246,6 +246,30 @@ fn setup_flow() {
     // February: Jane frontend 45 + backend 41 lines (multi-stack), Bob backend 40.
     assert!(csv.contains("acme-shop,multi_stack_pct,2025-02,50,"), "{csv}");
 
+    // The gap check reads that output: no classifier, no code host and no snapshots are gaps
+    // until the lead accepts each one with a reason.
+    let gaps = pmx(&ws, &["check", "--gaps"]);
+    assert!(!gaps.status.success());
+    let text = String::from_utf8_lossy(&gaps.stdout).into_owned();
+    for id in ["velocity", "peer_review", "dependency_vulnerabilities", "sast"] {
+        assert!(text.contains(&format!("(`{id}`) is not measured")), "{text}");
+    }
+    assert!(!text.contains("`fte`") && !text.contains("pr_size"), "{text}");
+    let before = config(&ws);
+    let accept: String = pm_config::GAP_IDS
+        .iter()
+        .map(|id| format!("\n[[accept]]\ngap = \"{id}\"\nreason = \"Not needed in this fixture\"\n"))
+        .collect();
+    std::fs::write(ws.join("pmx.toml"), format!("{before}{accept}")).unwrap();
+    let text = ok(&ws, &["check", "--gaps"]);
+    assert!(
+        text.contains("(`velocity`): accepted: Not needed in this fixture"),
+        "{text}"
+    );
+    // An accepted gap that is not a gap (FTE only matters once Velocity is measured) is only noted.
+    assert!(text.contains("`fte` is accepted as a gap but is not one now"), "{text}");
+    std::fs::write(ws.join("pmx.toml"), before).unwrap();
+
     // A second run is served from the cache.
     let plan = ok(&ws, &["plan", "--no-fetch", "--as-of", "2025-03-31"]);
     assert!(plan.contains("ingest: cached · rework: cached"), "{plan}");

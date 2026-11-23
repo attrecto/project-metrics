@@ -8,6 +8,7 @@ pub mod demo;
 pub mod eval;
 pub mod export;
 pub mod fleet;
+pub mod gaps;
 pub mod ingest;
 pub mod people;
 pub mod people_file;

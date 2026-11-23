@@ -68,6 +68,10 @@ enum Command {
         /// Unmapped identities with at least this many commits are errors.
         #[arg(long, default_value_t = 10)]
         threshold: u64,
+        /// Instead: list what the last collect did not measure (reads out/project.json) and fail
+        /// unless every gap is accepted in pmx.toml ([[accept]] gap, reason).
+        #[arg(long)]
+        gaps: bool,
     },
     /// Convert a prototype config_*.json (plus externals.json, fte.json, secrets_triage.json).
     ImportConfig {
@@ -992,7 +996,19 @@ fn run(cli: Cli) -> Result<()> {
         )?,
         Command::Repo(cmd) => cmd_repo(&ws_dir, cmd)?,
         Command::People { action, apply } => cmd_people(&ws_dir, action, apply)?,
-        Command::Check { threshold } => {
+        Command::Check { gaps: true, .. } => {
+            let ws = Workspace::load(&ws_dir)?;
+            let path = ws.out_dir().join("project.json");
+            let text = std::fs::read_to_string(&path)
+                .with_context(|| format!("cannot read {} (run `pmx collect` first)", path.display()))?;
+            let project: pm_metrics::ProjectFile =
+                serde_json::from_str(&text).with_context(|| format!("{} is not a project file", path.display()))?;
+            let open = pmx::gaps::report(&pmx::gaps::gaps(&project), &ws.config, &mut std::io::stdout())?;
+            if open > 0 {
+                bail!("{open} gap(s) not accepted");
+            }
+        }
+        Command::Check { threshold, .. } => {
             let ws = Workspace::load(&ws_dir)?;
             let findings = pmx::check::check(&ws, threshold);
             if pmx::check::report(&findings, &mut std::io::stdout())? {

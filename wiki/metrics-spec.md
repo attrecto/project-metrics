@@ -534,6 +534,7 @@ setup commands: [tool-implementation-plan.md §3](tool-implementation-plan.md#3-
 | `[classifiers.<name>]`, `[velocity] classifier` | LLM classifiers (§10.3) |
 | `[[phase]]` | `name`, `from`: a dated stretch of the project (maintenance, active development…), until the next phase starts (§4.1) |
 | `[[marker]]` | `name`, `date`, optional `kind = "ai"`: a dated event drawn on the charts and compared before / after (§4.1) |
+| `[[accept]]` | `gap`, `reason`: a metric family the project knowingly goes without. `gap` is one of `velocity`, `fte`, `peer_review`, `duplication`, `complexity`, `hotspots`, `dependency_vulnerabilities`, `secrets`, `sast`; `reason` is required. `pmx check --gaps` fails on a gap in `out/project.json` that has no entry (plan D68) |
 
 ### 10.2 FTE provider (external source, stub in v1)
 - Interface: `fte(project, date) → float | null` (FTE on that day; a week/month uses the mean over its

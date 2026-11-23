@@ -69,6 +69,10 @@ You see progress and an ETA per stage. The first run reads the whole history; la
 new. **Ctrl-C is safe:** run `pmx collect` again and it continues where it stopped. `pmx plan` shows the
 work and the ETA without running anything.
 
+Then see what the collect left out: `pmx check --gaps` lists every metric that is not measured and how
+to fix it. It fails until each gap is fixed or accepted in `pmx.toml` with a reason (`[[accept]]`, see
+[examples/pmx.toml](../examples/pmx.toml)), so nothing goes missing unnoticed.
+
 ## 5. Open the dashboard
 
 ```sh

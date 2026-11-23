@@ -101,3 +101,11 @@ from = "2026-02-02"
 name = "AI-assisted work (CLAUDE.md added)"
 date = "2026-04-14"
 kind = "ai"
+
+# A metric this project knowingly goes without. `pmx check --gaps` lists what the last collect did
+# not measure and fails on a gap that is not accepted here, so a gap is a decision, never an
+# oversight. Ids: velocity, fte, peer_review, duplication, complexity, hotspots,
+# dependency_vulnerabilities, secrets, sast.
+# [[accept]]
+# gap = "peer_review"
+# reason = "The code host has no API we may use"

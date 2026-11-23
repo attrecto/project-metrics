@@ -164,6 +164,7 @@ pub fn from_prototype(cfg: &Value, side: &SideFiles) -> Result<Imported, ConfigE
         velocity: None,
         phases: Vec::new(),
         markers: Vec::new(),
+        accepted_gaps: Vec::new(),
     };
     config.validate()?;
     Ok(Imported {
