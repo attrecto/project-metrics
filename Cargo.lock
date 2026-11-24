@@ -621,7 +621,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pm-classify"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "regex",
  "serde",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "pm-codehost"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "serde",
@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "pm-config"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "pm-classify",
@@ -655,7 +655,7 @@ dependencies = [
 
 [[package]]
 name = "pm-git"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "tar",
@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "pm-llm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "pm-config",
  "serde",
@@ -678,7 +678,7 @@ dependencies = [
 
 [[package]]
 name = "pm-metrics"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "libm",
@@ -690,14 +690,14 @@ dependencies = [
 
 [[package]]
 name = "pm-progress"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "pm-snapshot"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "pm-classify",
  "pm-metrics",
@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "pm-wasm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "pm-classify",
@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "pmx"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "pmx-parity"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "chrono",
