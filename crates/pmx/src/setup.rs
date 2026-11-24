@@ -165,10 +165,10 @@ pub fn detect_role(files: &[String], cls: &Classifier) -> (RepoRole, String) {
 /// `~/…` for paths under the home folder, else absolute.
 pub fn config_path(path: &Path) -> String {
     let abs = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        if let Ok(rel) = abs.strip_prefix(&home) {
-            return format!("~/{}", rel.display());
-        }
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
+        && let Ok(rel) = abs.strip_prefix(&home)
+    {
+        return format!("~/{}", rel.display());
     }
     abs.display().to_string()
 }

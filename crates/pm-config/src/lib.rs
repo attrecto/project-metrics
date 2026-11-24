@@ -611,10 +611,10 @@ impl Config {
             }
         }
         for (name, c) in &self.classifiers {
-            if let Some(f) = &c.fallback {
-                if !self.classifiers.contains_key(f) {
-                    return bad(format!("[classifiers.{name}] fallback `{f}` is not a classifier"));
-                }
+            if let Some(f) = &c.fallback
+                && !self.classifiers.contains_key(f)
+            {
+                return bad(format!("[classifiers.{name}] fallback `{f}` is not a classifier"));
             }
             if c.provider == Provider::Command && c.command.as_ref().is_none_or(|v| v.is_empty()) {
                 return bad(format!("[classifiers.{name}] provider = \"command\" needs `command`"));
@@ -657,10 +657,10 @@ impl Config {
         let mut owner: BTreeMap<String, &str> = BTreeMap::new();
         for (person, ids) in &self.people.persons {
             for id in ids {
-                if let Some(prev) = owner.insert(id.to_lowercase(), person) {
-                    if prev != person {
-                        return bad(format!("[people] `{id}` is listed for both `{prev}` and `{person}`"));
-                    }
+                if let Some(prev) = owner.insert(id.to_lowercase(), person)
+                    && prev != person
+                {
+                    return bad(format!("[people] `{id}` is listed for both `{prev}` and `{person}`"));
                 }
             }
         }
@@ -725,10 +725,10 @@ impl Workspace {
 
 /// Expand `~/` and resolve relative paths against `base`.
 pub fn expand_path(p: &str, base: &Path) -> PathBuf {
-    if let Some(rest) = p.strip_prefix("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join(rest);
-        }
+    if let Some(rest) = p.strip_prefix("~/")
+        && let Some(home) = std::env::var_os("HOME")
+    {
+        return PathBuf::from(home).join(rest);
     }
     let pb = PathBuf::from(p);
     if pb.is_absolute() { pb } else { base.join(pb) }

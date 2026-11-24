@@ -432,12 +432,12 @@ struct RepoResult {
 }
 
 fn fetch_repo(repo: &RepoConfig, plan: &RepoPlan, p: &Progress) -> Result<()> {
-    if let Some(url) = &repo.url {
-        if !plan.dir.exists() {
-            p.detail(FETCH, format!("cloning {}", plan.name));
-            Git::clone_bare(url, &plan.dir).with_context(|| format!("cloning `{}`", plan.name))?;
-            return Ok(());
-        }
+    if let Some(url) = &repo.url
+        && !plan.dir.exists()
+    {
+        p.detail(FETCH, format!("cloning {}", plan.name));
+        Git::clone_bare(url, &plan.dir).with_context(|| format!("cloning `{}`", plan.name))?;
+        return Ok(());
     }
     p.detail(FETCH, plan.name.clone());
     if let Err(e) = Git::open(&plan.dir).fetch() {
@@ -500,11 +500,11 @@ fn run_repo(
             ingest(&commits, &cx)
         }
     };
-    if plan.ingest != Work::Cached {
-        if let Some(c) = &cache {
-            c.put(name, INGEST, &keys.ingest, &tip, &ingested)?;
-            c.record_timing(INGEST, plan.ingest.units(), started.elapsed().as_secs_f64())?;
-        }
+    if plan.ingest != Work::Cached
+        && let Some(c) = &cache
+    {
+        c.put(name, INGEST, &keys.ingest, &tip, &ingested)?;
+        c.record_timing(INGEST, plan.ingest.units(), started.elapsed().as_secs_f64())?;
     }
     finish_stage(0, INGEST);
 
@@ -552,11 +552,11 @@ fn run_repo(
         counts,
         walked: previous + walked,
     };
-    if plan.rework != Work::Cached {
-        if let Some(c) = &cache {
-            c.put(name, REWORK, &keys.rework, &tip, &rework)?;
-            c.record_timing(REWORK, walked, started.elapsed().as_secs_f64())?;
-        }
+    if plan.rework != Work::Cached
+        && let Some(c) = &cache
+    {
+        c.put(name, REWORK, &keys.rework, &tip, &rework)?;
+        c.record_timing(REWORK, walked, started.elapsed().as_secs_f64())?;
     }
     finish_stage(1, REWORK);
 

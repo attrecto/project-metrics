@@ -125,10 +125,10 @@ pub fn mentors(prs: &[PrInput]) -> Vec<Vec<String>> {
             window.add(&prs[order[lo]], -1);
             lo += 1;
         }
-        if let (Some(a), Some(s), Some(_)) = (&p.author, p.stack, p.first_review_ms) {
-            if !window.is_expert(a, s) {
-                out[i] = p.reviewers.iter().filter(|r| window.is_expert(r, s)).cloned().collect();
-            }
+        if let (Some(a), Some(s), Some(_)) = (&p.author, p.stack, p.first_review_ms)
+            && !window.is_expert(a, s)
+        {
+            out[i] = p.reviewers.iter().filter(|r| window.is_expert(r, s)).cloned().collect();
         }
     }
     out

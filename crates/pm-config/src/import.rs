@@ -111,10 +111,10 @@ pub fn from_prototype(cfg: &Value, side: &SideFiles) -> Result<Imported, ConfigE
                     .as_array()
                     .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
                     .unwrap_or_default();
-            } else if !k.starts_with("__") {
-                if let Some(p) = v.as_str() {
-                    persons.entry(p.to_string()).or_default().push(k.clone());
-                }
+            } else if !k.starts_with("__")
+                && let Some(p) = v.as_str()
+            {
+                persons.entry(p.to_string()).or_default().push(k.clone());
             }
         }
         people.persons = persons;
@@ -123,10 +123,10 @@ pub fn from_prototype(cfg: &Value, side: &SideFiles) -> Result<Imported, ConfigE
         for key in ["*", name.as_str()] {
             for e in ext.get(key).and_then(Value::as_array).into_iter().flatten() {
                 for field in ["name", "email"] {
-                    if let Some(s) = e.get(field).and_then(Value::as_str) {
-                        if !s.trim().is_empty() {
-                            people.externals.push(s.to_string());
-                        }
+                    if let Some(s) = e.get(field).and_then(Value::as_str)
+                        && !s.trim().is_empty()
+                    {
+                        people.externals.push(s.to_string());
                     }
                 }
             }

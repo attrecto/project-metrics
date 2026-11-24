@@ -1030,10 +1030,10 @@ pub fn run_stage(s: &VelocitySettings, repos: &[VelocityRepo], mut prs: PrIndex)
                                 match classifiers.ask(name, job.local_only, set, &job.prepared) {
                                     Ok(g) => {
                                         failures_in_a_row.store(0, Ordering::SeqCst);
-                                        if let Some(c) = &cache {
-                                            if let Err(e) = c.put_answer(&job.key, &g) {
-                                                p.warn(format!("cannot cache an answer: {e:#}"));
-                                            }
+                                        if let Some(c) = &cache
+                                            && let Err(e) = c.put_answer(&job.key, &g)
+                                        {
+                                            p.warn(format!("cannot cache an answer: {e:#}"));
                                         }
                                         results.lock().unwrap_or_else(|e| e.into_inner()).push((job.index, g));
                                     }

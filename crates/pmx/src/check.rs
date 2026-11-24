@@ -48,10 +48,10 @@ pub fn local_only_violation(config: &Config, start: &str) -> Option<String> {
 
 /// Can each classifier run? (Providers not built yet, a missing `claude`, an unpinned model.)
 fn classifier_findings(c: &Config, out: &mut Vec<Finding>) {
-    if let Some(id) = c.velocity.as_ref().and_then(|v| v.rubric.as_deref()) {
-        if let Err(e) = pm_llm::QuestionSet::bundled(id) {
-            out.push(f(Level::Error, format!("[velocity] rubric: {e}")));
-        }
+    if let Some(id) = c.velocity.as_ref().and_then(|v| v.rubric.as_deref())
+        && let Err(e) = pm_llm::QuestionSet::bundled(id)
+    {
+        out.push(f(Level::Error, format!("[velocity] rubric: {e}")));
     }
     for (name, cl) in &c.classifiers {
         if let Err(e) = pm_llm::build(cl, pm_llm::Template::default()) {
@@ -154,12 +154,11 @@ pub fn check(ws: &Workspace, unmapped_threshold: u64) -> Vec<Finding> {
                 out.push(f(Level::Warn, format!("{name}: lockfile `{lf}` not found at {rev}")));
             }
         }
-        if repo.data_policy == Some(DataPolicy::LocalOnly) {
-            if let Some(cl) = c.classifier_for(repo) {
-                if let Some(v) = local_only_violation(c, cl) {
-                    out.push(f(Level::Error, format!("{name}: data_policy = \"local-only\" but {v}")));
-                }
-            }
+        if repo.data_policy == Some(DataPolicy::LocalOnly)
+            && let Some(cl) = c.classifier_for(repo)
+            && let Some(v) = local_only_violation(c, cl)
+        {
+            out.push(f(Level::Error, format!("{name}: data_policy = \"local-only\" but {v}")));
         }
     }
 

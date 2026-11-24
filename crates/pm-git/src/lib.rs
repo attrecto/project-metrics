@@ -572,11 +572,11 @@ impl LogRange {
         if let Some(x) = &self.exclude {
             a.push(format!("^{x}"));
         }
-        if let Some(d) = self.committed_since {
-            if supports_since_as_filter() {
-                let bound = d - chrono::Days::new(COMMITTER_DATE_MARGIN_DAYS);
-                a.push(format!("--since-as-filter={} 00:00:00 +0000", bound.format("%Y-%m-%d")));
-            }
+        if let Some(d) = self.committed_since
+            && supports_since_as_filter()
+        {
+            let bound = d - chrono::Days::new(COMMITTER_DATE_MARGIN_DAYS);
+            a.push(format!("--since-as-filter={} 00:00:00 +0000", bound.format("%Y-%m-%d")));
         }
         a.push("--".into());
         a

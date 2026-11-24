@@ -192,11 +192,11 @@ impl CodeHost for GitLab {
                     sink.skipped();
                     continue;
                 };
-                if let Some(until) = q.until {
-                    if parse_time(&path, merged)?.date_naive() > until {
-                        sink.skipped();
-                        continue;
-                    }
+                if let Some(until) = q.until
+                    && parse_time(&path, merged)?.date_naive() > until
+                {
+                    sink.skipped();
+                    continue;
                 }
                 let updated = m["updated_at"].as_str().map(String::from);
                 let updated_t = updated.as_deref().map(|u| parse_time(&path, u)).transpose()?;

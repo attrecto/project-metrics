@@ -140,14 +140,12 @@ impl<'a> ReworkWalker<'a> {
                 self.counts.entry(date).or_default().0 += 1;
                 self.last_added.insert((file, text.into()), date);
             }
-        } else if let Some(text) = line.strip_prefix('-') {
-            if !is_trivial_line(text) {
-                if let Some(prev) = self.last_added.get(&(file, text.into())) {
-                    if (date - *prev).num_days() <= self.young_days {
-                        self.counts.entry(date).or_default().1 += 1;
-                    }
-                }
-            }
+        } else if let Some(text) = line.strip_prefix('-')
+            && !is_trivial_line(text)
+            && let Some(prev) = self.last_added.get(&(file, text.into()))
+            && (date - *prev).num_days() <= self.young_days
+        {
+            self.counts.entry(date).or_default().1 += 1;
         }
     }
 

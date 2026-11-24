@@ -170,7 +170,7 @@ impl RepoState {
         self.counter += 1;
         let n = self.counter;
         // Every fourth line branches, so complexity and hotspots have something to measure.
-        if n % 4 == 0 {
+        if n.is_multiple_of(4) {
             return match ext {
                 "go" => format!("\tif v{n} > {} {{ return v{n} }}", n % 13),
                 "kt" | "kts" => format!("    if (v{n} > {}) return v{n}", n % 13),
@@ -394,14 +394,14 @@ pub fn generate_variant(dir: &Path, as_of: NaiveDate, v: &Variant) -> Result<Wor
             let mut changed = Vec::new();
 
             // Rework: replace part of the file touched last, often within days.
-            if let Some(last) = r.last_touched.clone().filter(|_| rng.chance(0.35)) {
-                if let Some(lines) = r.files.get(&last).cloned() {
-                    let keep = lines.len() - (lines.len() * (1 + rng.below(4) as usize) / 10);
-                    let fresh: Vec<String> = (0..rng.below(6)).map(|_| r.line(ext)).collect();
-                    r.files
-                        .insert(last.clone(), lines[..keep].iter().cloned().chain(fresh).collect());
-                    changed.push(last);
-                }
+            if let Some(last) = r.last_touched.clone().filter(|_| rng.chance(0.35))
+                && let Some(lines) = r.files.get(&last).cloned()
+            {
+                let keep = lines.len() - (lines.len() * (1 + rng.below(4) as usize) / 10);
+                let fresh: Vec<String> = (0..rng.below(6)).map(|_| r.line(ext)).collect();
+                r.files
+                    .insert(last.clone(), lines[..keep].iter().cloned().chain(fresh).collect());
+                changed.push(last);
             }
             // New work: a new file or more lines in an existing one.
             let stem = format!("feature{}", rng.below(40));

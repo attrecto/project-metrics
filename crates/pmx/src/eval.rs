@@ -233,10 +233,10 @@ impl EvalReport {
             Some(d) => why.push(format!("Velocity drift {d:+.1}% (limit ±{MAX_DRIFT_PCT}%)")),
             None => why.push("no reference points".into()),
         }
-        if let Some(r) = self.retest_pct() {
-            if r < MIN_RETEST_PCT {
-                why.push(format!("test–retest {r:.0}% < {MIN_RETEST_PCT}%"));
-            }
+        if let Some(r) = self.retest_pct()
+            && r < MIN_RETEST_PCT
+        {
+            why.push(format!("test–retest {r:.0}% < {MIN_RETEST_PCT}%"));
         }
         if why.is_empty() { Ok(()) } else { Err(why) }
     }
@@ -381,10 +381,10 @@ impl Matched<'_> {
                     None
                 };
                 let primary = self.classifiers.get(classifier).map_err(|e| anyhow!(e))?;
-                if let Some(c) = &cache {
-                    if let Some(g) = cached_answer(c, &key, &primary.identity())? {
-                        return Ok(g);
-                    }
+                if let Some(c) = &cache
+                    && let Some(g) = cached_answer(c, &key, &primary.identity())?
+                {
+                    return Ok(g);
                 }
                 let g = self.classifiers.ask(classifier, *local_only, set, prepared)?;
                 if let Some(c) = &cache {
