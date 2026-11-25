@@ -731,6 +731,7 @@ pub fn pull_requests_variant(as_of: NaiveDate, v: &Variant) -> BTreeMap<String, 
                     files: None,
                     reviews,
                     landed: Vec::new(),
+                    base: Some("main".into()),
                     commits: None,
                 });
                 number += 1;

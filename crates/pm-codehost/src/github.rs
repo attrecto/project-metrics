@@ -18,7 +18,7 @@ const QUERY: &str = r#"query($owner: String!, $name: String!, $cursor: String, $
     pullRequests(states: MERGED, orderBy: {field: $order, direction: DESC}, first: PAGE, after: $cursor) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number createdAt mergedAt updatedAt additions deletions
+        number createdAt mergedAt updatedAt additions deletions baseRefName
         author { login __typename ... on User { name } }
         mergeCommit { oid }
         commits(first: 100) @include(if: $commits) { nodes { commit { oid messageHeadline authoredDate author { email } } } }
@@ -131,6 +131,7 @@ fn pr(url: &str, n: &Value) -> Result<Option<MergedPr>> {
         files,
         reviews,
         landed: n["mergeCommit"]["oid"].as_str().map(String::from).into_iter().collect(),
+        base: n["baseRefName"].as_str().map(String::from),
         commits,
     }))
 }
@@ -219,7 +220,7 @@ mod tests {
 
     fn node(number: u64, updated: &str, reviews: Value) -> Value {
         json!({"number": number, "createdAt": "2025-02-03T09:00:00Z", "mergedAt": "2025-02-04T10:00:00Z",
-               "updatedAt": updated, "additions": 10, "deletions": 2,
+               "updatedAt": updated, "additions": 10, "deletions": 2, "baseRefName": "main",
                "author": {"login": "ann", "__typename": "User"}, "reviews": {"nodes": reviews}})
     }
 
@@ -265,6 +266,7 @@ mod tests {
     fn reads_commits_and_the_merge_commit() {
         let mut n = node(5, "2025-02-04T10:00:00Z", json!([]));
         n["mergeCommit"] = json!({"oid": "m5"});
+        n["baseRefName"] = json!("feature/stacked"); // a PR stacked into a feature branch, not main
         n["commits"] = json!({"nodes": [
             {"commit": {"oid": "c1", "messageHeadline": "add form", "authoredDate": "2025-02-03T09:10:00+01:00",
                         "author": {"email": "ann@work.example"}}},
@@ -288,6 +290,7 @@ mod tests {
         gh.merged_prs(&q, &mut sink).unwrap();
         let p = &sink.prs[0];
         assert_eq!(p.landed, ["m5"]);
+        assert_eq!(p.base.as_deref(), Some("feature/stacked"));
         let c = p.commits.as_ref().unwrap();
         assert_eq!((c[0].sha.as_str(), c[0].subject.as_str()), ("c1", "add form"));
         assert_eq!(c[0].author_email.as_deref(), Some("ann@work.example"));

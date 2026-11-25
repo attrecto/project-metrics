@@ -167,6 +167,7 @@ fn project_segment(id: &str) -> String {
 struct Listed {
     iid: u64,
     landed: Vec<String>,
+    base: Option<String>,
     author: Option<Account>,
     created_at: String,
     merged_at: String,
@@ -210,6 +211,7 @@ impl CodeHost for GitLab {
                         .iter()
                         .filter_map(|k| m[*k].as_str().filter(|s| !s.is_empty()).map(String::from))
                         .collect(),
+                    base: m["target_branch"].as_str().filter(|s| !s.is_empty()).map(String::from),
                     author: account(&m["author"]),
                     created_at: m["created_at"].as_str().unwrap_or_default().to_string(),
                     merged_at: merged.to_string(),
@@ -245,6 +247,7 @@ impl CodeHost for GitLab {
                                 files: if q.files { Some(self.files(&pid, l.iid)?) } else { None },
                                 reviews: self.reviews(&pid, l.iid)?,
                                 landed: l.landed.clone(),
+                                base: l.base.clone(),
                                 commits: if q.commits {
                                     Some(self.commits(&pid, l.iid)?)
                                 } else {
@@ -297,7 +300,7 @@ mod tests {
                 &format!("{list}&page=1"),
                 json!([{"iid": 4, "author": {"username": "ann"}, "created_at": "2025-02-03T09:00:00Z",
                         "merged_at": "2025-02-04T10:00:00Z", "updated_at": "2025-02-04T10:00:00Z",
-                        "merge_commit_sha": "m4", "squash_commit_sha": "s4"}]),
+                        "merge_commit_sha": "m4", "squash_commit_sha": "s4", "target_branch": "develop"}]),
             )
             .with_json(
                 &format!("{base}/4/notes?sort=asc&order_by=created_at&per_page=100&page=1"),
@@ -320,6 +323,7 @@ mod tests {
         host(http).merged_prs(&q, &mut sink).unwrap();
         let p = &sink.prs[0];
         assert_eq!(p.landed, ["m4", "s4"]);
+        assert_eq!(p.base.as_deref(), Some("develop"));
         let c = p.commits.as_ref().unwrap();
         assert_eq!((c[0].sha.as_str(), c[0].subject.as_str()), ("c1", "tidy form"));
         assert!(c[0].authored_at.is_some());

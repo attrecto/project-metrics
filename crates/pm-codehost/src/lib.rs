@@ -82,6 +82,11 @@ pub struct MergedPr {
     /// (GitLab may report both).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub landed: Vec<String>,
+    /// The PR's target (base) branch, e.g. `main` or a feature branch. `None` if the host did not
+    /// report it. Lets Velocity tell a PR merged to the measured branch from one stacked into a
+    /// feature branch (spec §4). GitHub `baseRefName`, GitLab `target_branch`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base: Option<String>,
     /// The PR's own commits, fetched for Velocity's PR packages (spec §4); `None` = not fetched.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commits: Option<Vec<PrCommit>>,

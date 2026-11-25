@@ -20,7 +20,8 @@ use crate::cache::Cache;
 
 pub const PULLS: &str = "pulls";
 /// Bump when the stored PR shape or what is fetched changes.
-const FORMAT: u32 = 1;
+// 2: PRs carry their base/target branch (MergedPr.base).
+const FORMAT: u32 = 2;
 /// An incremental fetch starts this long before the previous one, so clock skew and PRs updated
 /// during that run are not missed.
 const OVERLAP_HOURS: i64 = 24;
@@ -493,6 +494,7 @@ mod tests {
                 })
                 .collect(),
             landed: Vec::new(),
+            base: Some("main".into()),
             commits: None,
         }
     }
