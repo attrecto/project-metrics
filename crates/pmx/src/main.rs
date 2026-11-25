@@ -555,6 +555,7 @@ fn init_classifier(p: &mut Prompter, config: &mut Config) {
         classifier: Some(o.name.clone()),
         since: Some(since),
         rubric: None,
+        pr_source: None,
     });
     if !o.remote {
         eprintln!(

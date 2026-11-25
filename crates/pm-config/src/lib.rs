@@ -465,6 +465,20 @@ impl Provider {
     }
 }
 
+/// How Velocity forms PR work packages (spec §4).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PrSource {
+    /// Only the commits reachable from the measured branch: a feature branch squash-merged to it
+    /// stays one package. The default, and what the fleet is scored with.
+    #[default]
+    BranchReachable,
+    /// Additionally split an umbrella squash (a long-lived-branch PR) back into the feature-branch
+    /// PRs stacked into it, by their own commits' dates and authors. Opt-in and experimental: it
+    /// changes a project's package shape, so leave it off for fleet-comparable scoring.
+    AllMerged,
+}
+
 /// `[velocity]` (spec §4).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -480,6 +494,9 @@ pub struct Velocity {
     /// one). Part of the answer cache key: switching re-scores every package.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rubric: Option<String>,
+    /// How PR work packages are formed (default: `branch-reachable`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pr_source: Option<PrSource>,
 }
 
 /// `[people]`: canonical name → emails and code-host logins, plus `bots` and `externals`
@@ -739,6 +756,15 @@ mod tests {
     use super::*;
 
     const EXAMPLE: &str = include_str!("../../../examples/pmx.toml");
+
+    #[test]
+    fn pr_source_parses_defaults_and_rejects_unknown() {
+        let on: Velocity = toml::from_str("classifier = \"c\"\npr_source = \"all-merged\"").unwrap();
+        assert_eq!(on.pr_source, Some(PrSource::AllMerged));
+        let def: Velocity = toml::from_str("classifier = \"c\"").unwrap();
+        assert_eq!(def.pr_source, None);
+        assert!(toml::from_str::<Velocity>("pr_source = \"nope\"").is_err());
+    }
 
     #[test]
     fn example_config_parses() {

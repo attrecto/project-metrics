@@ -13,6 +13,7 @@ pub mod ingest;
 pub mod people;
 pub mod people_file;
 pub mod pulls;
+pub mod rollup;
 pub mod setup;
 pub mod snapshots;
 pub mod timesheet;

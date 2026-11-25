@@ -229,6 +229,9 @@ pub struct PrIndex {
     github: bool,
     /// Repos with a code host but no PR data: grouped by ticket and author-week only.
     pub missing: Vec<String>,
+    /// Per-PR facts the feature-branch rollup needs (`pr_source = "all-merged"`); built once here so
+    /// the raw PR list need not be threaded through the velocity stage.
+    pub facts: Vec<crate::rollup::PrFacts>,
 }
 
 #[derive(Default)]
@@ -292,6 +295,7 @@ impl PrIndex {
             missing,
             ..Default::default()
         };
+        let mut facts = Vec::new();
         for r in repos {
             let idx = out.repos.entry(r.repo.clone()).or_default();
             for pr in &r.prs {
@@ -299,8 +303,14 @@ impl PrIndex {
                     idx.by_sha.insert(sha.clone(), pr.id.clone());
                     idx.landed.insert(sha.clone(), pr.id.clone());
                 }
+                let mut own_shas = BTreeSet::new();
+                let mut last_date = None;
                 for c in pr.commits.iter().flatten() {
                     idx.by_sha.entry(c.sha.clone()).or_insert_with(|| pr.id.clone());
+                    own_shas.insert(c.sha.clone());
+                    if let Some(at) = c.authored_at {
+                        last_date = last_date.max(Some(at.date_naive()));
+                    }
                     if let (Some(email), Some(at)) = (&c.author_email, c.authored_at) {
                         idx.by_commit
                             .entry((email.trim().to_lowercase(), c.subject.trim().to_string()))
@@ -308,8 +318,18 @@ impl PrIndex {
                             .push((at.date_naive(), pr.id.clone()));
                     }
                 }
+                facts.push(crate::rollup::PrFacts {
+                    id: format!("{}{}", r.repo, pr.id),
+                    base: pr.base.clone(),
+                    own_shas,
+                    landed: pr.landed.clone(),
+                    additions: pr.additions,
+                    last_date: last_date.or(Some(pr.merged_at.date_naive())),
+                    commit_count: pr.commits.as_ref().map_or(0, Vec::len) as u32,
+                });
             }
         }
+        out.facts = facts;
         out
     }
 
@@ -1069,6 +1089,14 @@ pub fn run_stage(s: &VelocitySettings, repos: &[VelocityRepo], mut prs: PrIndex)
             "{refused} package(s) touch a local-only repo but their classifier is not local: not scored"
         ));
     }
+    // Opt-in: split each umbrella squash back into the feature-branch PRs stacked into it, re-dated
+    // to their own commits (spec §4, issue #1). Points are conserved, so the fleet total is unchanged.
+    if matches!(
+        config.velocity.as_ref().and_then(|v| v.pr_source),
+        Some(pm_config::PrSource::AllMerged)
+    ) {
+        rows = crate::rollup::apply(rows, &prs.facts);
+    }
     let mut health = health(&rows);
     for wp in &packages {
         match (&wp.ticket, &wp.pr) {
@@ -1220,6 +1248,7 @@ mod tests {
             repos: [("api".to_string(), idx)].into(),
             github,
             missing: Vec::new(),
+            facts: Vec::new(),
         }
     }
 
