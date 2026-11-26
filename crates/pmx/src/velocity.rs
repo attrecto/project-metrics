@@ -304,10 +304,12 @@ impl PrIndex {
                     idx.landed.insert(sha.clone(), pr.id.clone());
                 }
                 let mut own_shas = BTreeSet::new();
+                let mut commit_emails = Vec::new();
                 let mut last_date = None;
                 for c in pr.commits.iter().flatten() {
                     idx.by_sha.entry(c.sha.clone()).or_insert_with(|| pr.id.clone());
                     own_shas.insert(c.sha.clone());
+                    commit_emails.extend(c.author_email.clone());
                     if let Some(at) = c.authored_at {
                         last_date = last_date.max(Some(at.date_naive()));
                     }
@@ -320,6 +322,9 @@ impl PrIndex {
                 }
                 facts.push(crate::rollup::PrFacts {
                     id: format!("{}{}", r.repo, pr.id),
+                    repo: r.repo.clone(),
+                    author: pr.author.clone(),
+                    commit_emails,
                     base: pr.base.clone(),
                     own_shas,
                     landed: pr.landed.clone(),
@@ -1095,7 +1100,14 @@ pub fn run_stage(s: &VelocitySettings, repos: &[VelocityRepo], mut prs: PrIndex)
         config.velocity.as_ref().and_then(|v| v.pr_source),
         Some(pm_config::PrSource::AllMerged)
     ) {
-        rows = crate::rollup::apply(rows, &prs.facts);
+        let (split, kept) = crate::rollup::apply(rows, &prs.facts, s.identity);
+        rows = split;
+        if !kept.is_empty() {
+            p.warn(format!(
+                "pr_source = \"all-merged\": not split, their package holds other work or their sub-PRs are already counted: {}",
+                kept.join(", ")
+            ));
+        }
     }
     let mut health = health(&rows);
     for wp in &packages {
