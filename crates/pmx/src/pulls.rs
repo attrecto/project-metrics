@@ -19,8 +19,10 @@ use sha2::{Digest, Sha256};
 use crate::cache::Cache;
 
 pub const PULLS: &str = "pulls";
-/// Bump when the stored PR shape or what is fetched changes.
-// 2: PRs carry their base/target branch (MergedPr.base).
+/// Bump when the stored PR shape or what is fetched changes. A bump refetches every PR once (GitLab
+/// needs its notes, files and commits again too); a successful fetch then drops the older formats'
+/// rows of that repo.
+// 2: PRs carry their base/target branch (MergedPr.base, plan D70).
 const FORMAT: u32 = 2;
 /// An incremental fetch starts this long before the previous one, so clock skew and PRs updated
 /// during that run are not missed.
@@ -107,9 +109,13 @@ pub fn token_env(ws: &Workspace) -> Option<String> {
 
 /// Cache scope of one repo: everything that changes what a fetch returns.
 pub fn scope(ws: &Workspace, repo: &RepoConfig, project_id: &str, selection: Selection) -> String {
+    scope_at(FORMAT, ws, repo, project_id, selection)
+}
+
+fn scope_at(format: u32, ws: &Workspace, repo: &RepoConfig, project_id: &str, selection: Selection) -> String {
     let h = ws.config.code_host.as_ref();
     let v = serde_json::json!({
-        "format": FORMAT,
+        "format": format,
         "kind": h.map(|h| h.kind),
         "base": h.and_then(|h| h.base.clone()),
         "project": project_id,
@@ -296,6 +302,10 @@ pub fn run_stage(s: &PullSettings) -> Result<Pulls> {
                         &scope,
                         &fetch_started.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
                     )?;
+                }
+                // This format's rows are complete now; an older format's are never read again.
+                for old in 1..FORMAT {
+                    c.drop_pr_scope(&scope_at(old, s.ws, repo, project_id, s.selection))?;
                 }
                 c.prs::<MergedPr>(&scope)?
             }
@@ -497,6 +507,55 @@ mod tests {
             base: Some("main".into()),
             commits: None,
         }
+    }
+
+    #[test]
+    fn a_fetch_drops_the_older_formats_rows() {
+        let tmp = tempfile::tempdir().unwrap();
+        let text = r#"
+            [project]
+            name = "X"
+            range_start = "2025-01-01"
+            breadth_roles = ["backend"]
+            [[repo]]
+            path = "a"
+            role = "backend"
+            code_host_id = 7
+            [code_host]
+            type = "gitlab"
+        "#;
+        let ws = Workspace {
+            root: tmp.path().to_path_buf(),
+            config: pm_config::Config::parse(text, std::path::Path::new("x")).unwrap(),
+        };
+        let (repo, pid) = code_host_repos(&ws).swap_remove(0);
+        let repo = repo.clone();
+        let path = ws.state_dir().join("cache.sqlite");
+        let old = scope_at(FORMAT - 1, &ws, &repo, &pid, Selection::UpdatedSince);
+        let c = Cache::open(&path).unwrap();
+        c.put_pr(&old, "!1", None, &pr("ann", &[])).unwrap();
+        c.set_pr_synced(&old, "2025-03-01T00:00:00Z").unwrap();
+        drop(c);
+
+        let prs = BTreeMap::from([(repo.display_name(), vec![pr("ann", &[])])]);
+        let source = PrSource::Fixed(prs);
+        run_stage(&PullSettings {
+            ws: &ws,
+            as_of: Utc::now().date_naive(),
+            source: &source,
+            selection: Selection::UpdatedSince,
+            use_cache: true,
+            incremental: true,
+            commits: false,
+            progress: Progress::off(),
+        })
+        .unwrap();
+
+        let c = Cache::open(&path).unwrap();
+        assert!(c.prs::<MergedPr>(&old).unwrap().is_empty());
+        assert_eq!(c.pr_synced(&old).unwrap(), None);
+        let now = scope(&ws, &repo, &pid, Selection::UpdatedSince);
+        assert_eq!(c.prs::<MergedPr>(&now).unwrap().len(), 1);
     }
 
     #[test]

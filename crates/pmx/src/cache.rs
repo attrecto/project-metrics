@@ -163,6 +163,15 @@ impl Cache {
         Ok(())
     }
 
+    /// Forget a scope's PRs and its sync time.
+    pub fn drop_pr_scope(&self, scope: &str) -> Result<()> {
+        self.db
+            .execute("DELETE FROM pr_item WHERE scope = ?1", params![scope])?;
+        self.db
+            .execute("DELETE FROM pr_sync WHERE scope = ?1", params![scope])?;
+        Ok(())
+    }
+
     /// When the scope's last complete fetch started (RFC 3339).
     pub fn pr_synced(&self, scope: &str) -> Result<Option<String>> {
         Ok(self
